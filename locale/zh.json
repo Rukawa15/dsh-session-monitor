@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "DSH 会话监视器",
+    "description": "实时查看本机所有 DSH 会话状态，输出固定格式任务看板（进行中任务 + 已完成 Top N）。通过内置技能运行 scripts/monitor.py。"
+  }
+}

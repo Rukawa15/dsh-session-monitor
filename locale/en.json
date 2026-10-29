@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "DSH Session Monitor",
+    "description": "Real-time status of every local DSH session plus a fixed-format task board (running tasks + completed top N). Run scripts/monitor.py via the bundled skill."
+  }
+}
