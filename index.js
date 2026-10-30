@@ -1,21 +1,25 @@
 /**
  * Host half of the dsh-session-monitor bundle.
  *
- * Routes (via ctx.connection.fetch, guarded and retried; skill/script features
- * never depend on these routes being available):
+ * Routes (registered synchronously; the injected services are guaranteed
+ * present when apply() runs, so no deferred registration is needed):
  *   GET  /session-monitor/config    - shared config file for the Settings UI
  *   GET  /session-monitor/delivery  - dsh-im proactive-delivery capability
- *   POST /session-monitor/deliver   - send via ctx.dshIm.send when available
+ *   POST /session-monitor/deliver   - send via ctx.dshIm.send (shared core)
  *
- * Delivery targets stay owned by dsh-im (Settings → IM 机器人). The dshIm
- * service is accessed lazily inside request handlers, NOT via declarative
- * `inject`: a declarative inject keeps this whole half inactive while the
- * service is absent, which also took down the config route (0.4.0 regression,
- * fixed in 0.4.1).
+ * Service access in this Cordis requires declarative `inject`: a plain
+ * property read returns nothing (0.4.0/0.4.1 root cause), and deferring
+ * effect registration to a timer crashed the host with INACTIVE_EFFECT
+ * during plugin reload (0.4.1 regression, fixed in 0.4.2).
+ *
+ * Note: this half stays inactive while dsh-im is absent; skills and scripts
+ * keep working regardless, and notify falls back to dsh-im's HTTP endpoint.
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
+
+export const inject = ['connection', 'dshIm'];
 
 const CONFIG_PATH = join(homedir(), '.dsh', 'dsh-session-monitor.json');
 
@@ -83,7 +87,7 @@ function jsonReply(payload, status) {
   });
 }
 
-function registerRoutes(ctx) {
+export function apply(ctx) {
   const disposers = [];
 
   const keep = (fn) => {
@@ -118,11 +122,8 @@ function registerRoutes(ctx) {
     requestBody: 'streaming',
     fetch: async () => {
       try {
-        if (!ctx.dshIm) {
-          return jsonReply({
-            available: false,
-            reason: 'dsh-im 插件未安装或其宿主服务未就绪',
-          });
+        if (!ctx.dshIm || typeof ctx.dshIm.listBots !== 'function') {
+          return jsonReply({ available: false, reason: 'dshIm 服务不可用' });
         }
         const bots = await ctx.dshIm.listBots();
         const targets = [];
@@ -155,8 +156,8 @@ function registerRoutes(ctx) {
     requestBody: 'streaming',
     fetch: async (request) => {
       try {
-        if (!ctx.dshIm) {
-          return jsonReply({ sent: false, error: 'dsh-im 宿主服务不可用' }, 503);
+        if (!ctx.dshIm || typeof ctx.dshIm.send !== 'function') {
+          return jsonReply({ sent: false, error: 'dshIm 服务不可用' }, 503);
         }
         const input = await readRequestBody(request);
         if (!input || !input.botId || !input.targetId || !input.text) {
@@ -171,6 +172,7 @@ function registerRoutes(ctx) {
     },
   }));
 
+  // 同步注册清理: 只在 apply 执行时调用(上下文必然活跃), 绝不延迟
   if (typeof ctx.effect === 'function') {
     ctx.effect(() => {
       for (const dispose of disposers) {
@@ -179,19 +181,4 @@ function registerRoutes(ctx) {
       return () => {};
     }, 'session-monitor: host routes');
   }
-}
-
-export function apply(ctx) {
-  let done = false;
-  const attempt = (n) => {
-    if (done) return;
-    try {
-      registerRoutes(ctx);
-      done = true;
-    } catch {
-      // ctx.connection 尚未就绪: 延迟重试(约 10 秒内 20 次)
-      if (n < 20) setTimeout(() => attempt(n + 1), 500);
-    }
-  };
-  attempt(0);
 }
