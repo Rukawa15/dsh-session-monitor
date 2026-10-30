@@ -1,23 +1,21 @@
 /**
  * Host half of the dsh-session-monitor bundle.
  *
- * Routes (via ctx.connection.fetch, each guarded; skill/script features never
- * depend on these routes being available):
+ * Routes (via ctx.connection.fetch, guarded and retried; skill/script features
+ * never depend on these routes being available):
  *   GET  /session-monitor/config    - shared config file for the Settings UI
- *   GET  /session-monitor/delivery  - dsh-im proactive-delivery capability:
- *                                     {available, bots, targets} or install hint
- *   POST /session-monitor/deliver   - send via ctx.dshIm.send (shared core)
+ *   GET  /session-monitor/delivery  - dsh-im proactive-delivery capability
+ *   POST /session-monitor/deliver   - send via ctx.dshIm.send when available
  *
- * Delivery targets are owned and configured inside dsh-im (Settings → IM 机器人,
- * per-bot targets with testing); this plugin only discovers and calls them.
- * Declaring `inject: ['dshIm']` keeps this host half inactive until dsh-im is
- * installed, while skills and scripts keep working regardless.
+ * Delivery targets stay owned by dsh-im (Settings → IM 机器人). The dshIm
+ * service is accessed lazily inside request handlers, NOT via declarative
+ * `inject`: a declarative inject keeps this whole half inactive while the
+ * service is absent, which also took down the config route (0.4.0 regression,
+ * fixed in 0.4.1).
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
-
-export const inject = ['dshIm'];
 
 const CONFIG_PATH = join(homedir(), '.dsh', 'dsh-session-monitor.json');
 
@@ -85,17 +83,16 @@ function jsonReply(payload, status) {
   });
 }
 
-export function apply(ctx) {
+function registerRoutes(ctx) {
   const disposers = [];
 
-  const keep = (fn, label) => {
+  const keep = (fn) => {
     try {
       const dispose = fn();
       if (typeof dispose === 'function') disposers.push(dispose);
     } catch {
-      // 该路由不可注册(旧版本/不同形态): 其余功能不受影响
+      // 单条路由注册失败不影响其余
     }
-    void label;
   };
 
   keep(() => ctx.connection.fetch.register({
@@ -113,7 +110,7 @@ export function apply(ctx) {
         return jsonReply({ error: String(error) }, 500);
       }
     },
-  }), 'config route');
+  }));
 
   keep(() => ctx.connection.fetch.register({
     path: '/session-monitor/delivery',
@@ -121,6 +118,12 @@ export function apply(ctx) {
     requestBody: 'streaming',
     fetch: async () => {
       try {
+        if (!ctx.dshIm) {
+          return jsonReply({
+            available: false,
+            reason: 'dsh-im 插件未安装或其宿主服务未就绪',
+          });
+        }
         const bots = await ctx.dshIm.listBots();
         const targets = [];
         for (const bot of bots || []) {
@@ -144,7 +147,7 @@ export function apply(ctx) {
         return jsonReply({ available: false, error: String(error) });
       }
     },
-  }), 'delivery inspect route');
+  }));
 
   keep(() => ctx.connection.fetch.register({
     path: '/session-monitor/deliver',
@@ -152,6 +155,9 @@ export function apply(ctx) {
     requestBody: 'streaming',
     fetch: async (request) => {
       try {
+        if (!ctx.dshIm) {
+          return jsonReply({ sent: false, error: 'dsh-im 宿主服务不可用' }, 503);
+        }
         const input = await readRequestBody(request);
         if (!input || !input.botId || !input.targetId || !input.text) {
           return jsonReply({ sent: false, error: 'botId/targetId/text required' }, 400);
@@ -163,7 +169,7 @@ export function apply(ctx) {
         return jsonReply({ sent: false, error: String(error) }, 500);
       }
     },
-  }), 'deliver route');
+  }));
 
   if (typeof ctx.effect === 'function') {
     ctx.effect(() => {
@@ -173,4 +179,19 @@ export function apply(ctx) {
       return () => {};
     }, 'session-monitor: host routes');
   }
+}
+
+export function apply(ctx) {
+  let done = false;
+  const attempt = (n) => {
+    if (done) return;
+    try {
+      registerRoutes(ctx);
+      done = true;
+    } catch {
+      // ctx.connection 尚未就绪: 延迟重试(约 10 秒内 20 次)
+      if (n < 20) setTimeout(() => attempt(n + 1), 500);
+    }
+  };
+  attempt(0);
 }
