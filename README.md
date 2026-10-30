@@ -1,6 +1,6 @@
 # dsh-session-moniter (开发目录)
 
-DSH 会话监视器插件的开发目录。当前版本 **0.4.2**（待验证）。
+DSH 会话监视器插件的开发目录。当前版本 **0.5.0**（隔离环境已验证，桌面端待重启验证）。
 
 ## 版本规范（语义化版本）
 
@@ -12,6 +12,22 @@ DSH 会话监视器插件的开发目录。当前版本 **0.4.2**（待验证）
 
 ## 版本记录
 
+- **0.5.0** — 设置页新增**依赖插件检测**：宿主半常驻路由
+  `GET /session-monitor/status`（`ctx.get('dshIm')` 无侵入探测，不需要 inject
+  声明，服务缺席返回 undefined 不抛错），返回版本号 + dshIm 三态信息
+  （available / bots 数 / targets 数 / 部分列举错误）；客户端设置页顶部渲染
+  「依赖插件检测」状态卡：**未安装**（引导到插件市场装 dsh-im）/ **已连接无
+  目标**（引导到 设置→IM机器人 新建目标）/ **正常**（显示机器人与目标数），
+  另有「宿主半为旧版本」降级态与「重新检测」按钮；标题旁显示插件版本号
+- **0.4.3** — **根因修复设置页「宿主配置服务未连接」**：0.4.0 起宿主半调用的
+  `ctx.connection.fetch.register` 是**不存在的 API**（`connection` 是客户端侧服务名），
+  TypeError 被 try/catch 静默吞掉，路由从未注册过。正确机制（对照 dsh-im 源码）是
+  `ctx.webServer.register({kind:'exact', path, handler(req,res)})`（宿主 `webServer`
+  服务，原生 Node 处理器）。静态 inject 只声明 `webServer`（任何已启动 profile 必有，
+  无 dsh-im 时设置页配置也可用）；`dshIm` 改为命令式 `ctx.inject(['dshIm'],...)` 挂载
+  delivery/deliver 路由，服务出现即挂载、消失即卸载。已在隔离 profile
+  （base + web-app + 假 dshIm 提供者）验证：config GET 200 / 非法 JSON 400 /
+  delivery available:true / deliver 参数校验 400
 - **0.4.2** — 修复宿主路由 404 与启动崩溃：根因是本 Cordis 的 `ctx` 代理
   **不声明 inject 就读不到服务**（`ctx.connection` 一直为 undefined，路由
   注册被静默吞掉）；改为 `inject: ['connection', 'dshIm']` 并同步注册；
@@ -55,7 +71,8 @@ DSH 会话监视器插件的开发目录。当前版本 **0.4.2**（待验证）
 
 - `package.json`        npm 包清单（name + `dsh.bundle.patch` + `dsh.client` 客户端声明）
 - `cordis.patch.yml`    组合包补丁（把本插件插入 agent preset）
-- `index.js`            Host 半：注册 `/session-monitor/config` 配置读写路由
+- `index.js`            Host 半：经 `ctx.webServer.register` 注册三条 HTTP 路由
+                        （config 读写 / delivery 能力 / deliver 投递，见 0.4.3 说明）
 - `client.js`           Client 半：设置页「DSH 会话监视器」分区（React 表单）
 - `icon.svg`            插件图标
 - `locale/zh|en.json`   插件管理器里显示的标题与描述
