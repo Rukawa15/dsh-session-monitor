@@ -9,6 +9,7 @@
   python monitor.py notify --text "..." [--bot --target]  经 dsh-im 主动投递发消息到 IM
   python monitor.py tail <会话ID前缀> [-n 20]            某会话最近 N 条事件
   python monitor.py dump <会话ID前缀> [-o out.md]        导出完整对话为 Markdown
+  python monitor.py help [指令名]                        固定格式使用指南(用户问"怎么用"时原样输出)
 
 只读操作，不会修改任何会话文件。
 """
@@ -800,6 +801,129 @@ def cmd_dump(args):
     print('已导出 %d 条消息到 %s (%d 字符)' % (len(ev), os.path.abspath(out), len(md)))
 
 
+def _plugin_version():
+    """读包根 package.json 的版本号(单一来源), 失败返回占位。"""
+    try:
+        pkg = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           'package.json')
+        with open(pkg, encoding='utf-8') as f:
+            return json.load(f).get('version') or '(未知版本)'
+    except Exception:
+        return '(未知版本)'
+
+
+def _guide_full():
+    ver = _plugin_version()
+    return """【dsh-session-monitor 使用指南】v%s
+
+一、这是什么
+实时监视本机所有 DeepSeek Harness (DSH) 会话的只读工具：谁在跑、跑什么、
+进展如何；配合 dsh-im 插件还能把结果推送到微信/QQ/飞书等 IM。
+全部操作只读，不会修改或干扰任何会话。
+
+二、指令一览（python scripts/monitor.py <指令>；help <指令> 看单指令详情）
+  status   全部会话状态总览（RUNNING/STALLED/IDLE/ABORTED）
+  board    固定格式任务看板：▶ 活跃中 / ⏸ 疑似中断 / ✔ 已完成TopN
+  tail     某会话最近 N 条事件（tail <短ID> -n 20）
+  wait     阻塞等待某会话新回复（wait <短ID> --timeout 600）
+  notify   经 IM 主动推送消息（notify --text "..." --to 目标）
+  dump     导出某会话完整对话为 Markdown（dump <短ID> -o 文件.md）
+  help     本指南；help <指令名> 查看该指令的用法与示例
+
+三、两个技能（AI 助手自动调用，无需手敲命令）
+  dsh-session-monitor  问「其他会话在干什么/进度如何」时自动使用
+  dsh-session-relay    说「去XX会话发句话/问一下并带回回复」时使用
+
+四、设置页
+  设置 → 「DSH 会话监视器」：调整轮询间隔/判定阈值/看板条数；
+  顶部「依赖插件检测」实时显示 dsh-im 状态（未安装/无目标/正常）。
+
+五、配置优先级：命令行参数 > ~/.dsh/dsh-session-monitor.json > 默认值
+  （设置页与配置文件是同一份数据；修改对之后运行的命令立即生效）
+
+六、常见问法 → 对应指令
+  「现在在跑什么任务」        → board
+  「XX任务进度怎么样」        → tail <短ID>
+  「等XX做完把结果发我」      → wait <短ID> --notify
+  「把这条消息推到飞书」      → notify --text "..." --to feishu
+  「导出XX会话完整对话」      → dump <短ID> -o 导出.md
+  「这插件怎么用/有什么功能」  → help（本指南）
+
+七、依赖
+  核心功能仅需 Python3 + zstandard；IM 推送需另装 dsh-im 插件（可选），
+  缺失时相关命令会给出安装/配置引导，其余功能不受影响。""" % ver
+
+
+HELP_TOPICS = {
+    'status': """status — 全部会话状态总览（只读）
+用法: python monitor.py status [--cwd D:\\路径] [--json]
+说明: 列出本机所有 DSH 会话的运行状态（RUNNING/STALLED/IDLE/ABORTED）、
+      轮次/步骤、工作区与最新动作；--cwd 只看某个工作区。
+示例: python monitor.py status --cwd D:\\LQ\\v2""",
+    'board': """board — 固定格式任务看板（只读, IM 查询首选）
+用法: python monitor.py board [--top N] [--max-running N] [--cwd 路径]
+                              [--exclude 短ID] [--json]
+说明: 三段式看板：▶ 活跃中（最多 N 条）/ ⏸ 疑似中断 / ✔ 已完成 TopN，
+      均按更新时间由新到旧；输出格式固定，可直接原样转发给用户。
+示例: python monitor.py board --top 10
+      python monitor.py board --exclude 0a29d310""",
+    'tail': """tail — 查看某会话最近事件（只读）
+用法: python monitor.py tail <会话ID前缀> [-n 条数] [--cwd 路径]
+说明: 打印该会话最近 N 条事件（用户消息/AI消息/工具调用等），适合深入
+      某个任务看当前进展。短ID 只需前 8 位左右。
+示例: python monitor.py tail 0a29d310 -n 20""",
+    'wait': """wait — 阻塞等待某会话的新回复（信使核心, 只读）
+用法: python monitor.py wait <会话ID前缀> [--timeout 秒] [--poll 秒]
+                            [--notify] [--to 目标] [--json]
+说明: 阻塞直到该会话当前轮次结束并打印 AI 回复文本；--notify 时把回复
+      经 dsh-im 自动投递到 IM（--to 指定目标，缺省用配置默认）。
+示例: python monitor.py wait 0a29d310 --timeout 600 --notify""",
+    'notify': """notify — 经 IM 主动推送一条消息（需要 dsh-im）
+用法: python monitor.py notify --text "消息" [--to 目标 ...]
+                              [--bot ID --target ID] [--format plain|markdown]
+说明: 把文本推送到 IM（微信/QQ/飞书等，渠道无关）；目标由 dsh-im 统一
+      管理（设置 → IM机器人），--bot/--target 可免配置一次性投递。
+示例: python monitor.py notify --text "构建完成" --to feishu""",
+    'dump': """dump — 导出某会话完整对话为 Markdown（只读）
+用法: python monitor.py dump <会话ID前缀> [-o 输出.md] [--cwd 路径]
+说明: 把该会话从头到尾的用户/AI 消息导出为 Markdown 文件，便于存档、
+      分享或离线阅读；缺省输出到当前目录 session-<短ID>.md。
+示例: python monitor.py dump 0a29d310 -o 会话导出.md""",
+    'help': """help — 固定格式使用指南
+用法: python monitor.py help [指令名]
+说明: 不带参数输出完整使用指南（功能清单/技能/设置页/配置/常见问法）；
+      带指令名输出该指令的用法、说明与示例。输出格式完全固定——
+      用户问「这插件怎么用/有什么功能」时，把 stdout 原样发送即可。
+示例: python monitor.py help board""",
+    'config': """config — 配置的三个入口（优先级: 命令行参数 > 配置文件 > 默认值）
+  1) 设置页：设置 → 「DSH 会话监视器」（图形界面，含依赖插件检测）
+  2) 配置文件：~/.dsh/dsh-session-monitor.json（设置页与它是同一份数据，
+     手改后对之后运行的命令立即生效）
+  3) 命令行参数：如 board --top 10、wait --poll 5（只对当次命令生效）
+可调项: poll_interval_sec / running_threshold_sec / zombie_hours /
+     board_top / board_max_running / delivery（IM 投递回退配置）""",
+    'install': """install — 安装形态（本机已完成安装）
+  · 插件包（当前启用）: 经 DSH「插件管理」以本地路径 D:\\dsh-session-moniter
+    安装，pnpm link 指向开发目录，改代码后重启 DSH 生效
+  · 技能目录（形态A）: C:\\Users\\admin\\.agents\\skills\\dsh-session-monitor
+    （junction 指向开发目录；两种形态同时启用会重复出现技能）
+  · 依赖: Python3 + zstandard（核心功能）；dsh-im（可选，仅 IM 推送需要）""",
+}
+
+
+def cmd_help(args):
+    topic = (args.topic or '').strip().lower()
+    if not topic:
+        print(_guide_full())
+        return
+    block = HELP_TOPICS.get(topic)
+    if block is None:
+        print('未知主题: %s' % topic)
+        print('可用主题: %s' % ', '.join(sorted(HELP_TOPICS)))
+        return
+    print(block)
+
+
 def main():
     ap = argparse.ArgumentParser(description='DSH 会话监视器(只读)')
     sub = ap.add_subparsers(dest='cmd')
@@ -840,11 +964,15 @@ def main():
     pd.add_argument('sid', help='会话 ID 前缀')
     pd.add_argument('-o', '--out')
     pd.add_argument('--cwd')
+    ph = sub.add_parser('help', help='固定格式使用指南(help [指令名] 查看详情)')
+    ph.add_argument('topic', nargs='?', default=None,
+                    help='指令名或主题(status/board/tail/wait/notify/dump/help/config/install)')
     args = ap.parse_args()
     if not args.cmd:
         args = ap.parse_args(['status'])
     {'status': cmd_status, 'board': cmd_board, 'tail': cmd_tail,
-     'wait': cmd_wait, 'notify': cmd_notify, 'dump': cmd_dump}[args.cmd](args)
+     'wait': cmd_wait, 'notify': cmd_notify, 'dump': cmd_dump,
+     'help': cmd_help}[args.cmd](args)
 
 
 if __name__ == '__main__':

@@ -24,9 +24,21 @@ python <包根>/scripts/monitor.py wait <会话ID前缀> --notify     # 等到�
 python <包根>/scripts/monitor.py wait <会话ID前缀> --notify --to wechat  # 投递到指定渠道
 python <包根>/scripts/monitor.py notify --text "..." [--to feishu --to qq] # 主动发消息(可多渠道)
 python <包根>/scripts/monitor.py dump <会话ID前缀> -o 导出.md  # 导出完整对话
+python <包根>/scripts/monitor.py help [指令名]          # 固定格式使用指南(用户问"怎么用"时用)
 ```
 
 status / board 的 `--json` 可输出机器可读格式，便于进一步加工。
+
+## 用户问「怎么用」时的固定输出（help 指令）
+
+当用户（尤其经 IM 接入的会话）询问「这个插件有什么功能 / 怎么使用 /
+安装了有什么用 / 帮助」时：
+
+1. 运行 `python <包根>/scripts/monitor.py help`（问某个具体功能时用
+   `help <指令名>`，如 `help board`）
+2. 将脚本 stdout **原样发送**给用户——与 board 相同的约定：不改写、
+   不总结、不增删格式，保证每位用户看到的指南完全一致
+3. 用户追问细节时再按指南中的「常见问法 → 对应指令」执行对应命令
 
 ## 可配置参数
 

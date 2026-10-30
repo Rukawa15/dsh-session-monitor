@@ -1,6 +1,6 @@
 # dsh-session-moniter (开发目录)
 
-DSH 会话监视器插件的开发目录。当前版本 **0.5.0**（隔离环境已验证，桌面端待重启验证）。
+DSH 会话监视器插件的开发目录。当前版本 **0.5.1**（待审核提交）。
 
 ## 版本规范（语义化版本）
 
@@ -12,6 +12,13 @@ DSH 会话监视器插件的开发目录。当前版本 **0.5.0**（隔离环境
 
 ## 版本记录
 
+- **0.5.1** — 新增 **`help` 指令**（用户指南固定输出）：`monitor.py help`
+  打印完整固定格式使用指南（功能清单/技能/设置页/配置优先级/常见问法→
+  指令/依赖说明），`help <指令名>` 输出单指令的用法与示例（主题：
+  status/board/tail/wait/notify/dump/help/config/install），未知主题列出
+  可用主题；指南版本号读 package.json 单一来源。两份 SKILL.md 同步增加
+  约定：用户问「这插件怎么用/有什么功能」时运行 help 并把 stdout **原样
+  发送**（与 board 相同的固定输出约定）
 - **0.5.0** — 设置页新增**依赖插件检测**：宿主半常驻路由
   `GET /session-monitor/status`（`ctx.get('dshIm')` 无侵入探测，不需要 inject
   声明，服务缺席返回 undefined 不抛错），返回版本号 + dshIm 三态信息
@@ -79,7 +86,9 @@ DSH 会话监视器插件的开发目录。当前版本 **0.5.0**（隔离环境
 - `skills/dsh-session-monitor/SKILL.md`  插件包标准位置的技能入口（会话监视）
 - `skills/dsh-session-relay/SKILL.md`    跨会话信使技能（GUI 发送 + wait 等待回复 + 转发）
 - `SKILL.md`            根位置技能入口（形态A junction 使用，安装插件后可删）
-- `scripts/monitor.py`  主脚本（status / board / tail / wait / dump）
+- `scripts/monitor.py`  主脚本（status / board / tail / wait / notify / dump / help）
+- `scripts/grep_sessions.py`  会话存档正则搜索工具（找回历史命令/URL/报错原文）
+- `scripts/test_profile_import.mjs`  插件包解析导入诊断（以 profile 为锚点）
 - `requirements.txt`    Python 依赖（zstandard）
 
 ## 数据源
