@@ -1,4 +1,4 @@
 - insert:
     - id: dsh-session-monitor
-      name: '@local/dsh-session-monitor'
+      name: 'dsh-session-monitor'
       config: {}

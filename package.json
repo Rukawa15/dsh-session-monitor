@@ -1,7 +1,6 @@
 {
-  "name": "@local/dsh-session-monitor",
-  "version": "0.5.2",
-  "private": true,
+  "name": "dsh-session-monitor",
+  "version": "0.6.0",
   "type": "module",
   "exports": {
     ".": "./index.js",
@@ -19,9 +18,24 @@
     "README.md",
     "skills/",
     "scripts/",
+    "!scripts/__pycache__",
     "requirements.txt"
   ],
-  "description": "DSH 会话监视器: 实时会话状态、固定格式任务看板、跨会话信使与设置页参数配置",
+  "description": "Read-only monitor for local DeepSeek Harness (DSH) sessions: live task board, per-session tails, blocking reply wait, Markdown export, and optional IM push via dsh-im",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "session-monitor",
+    "dashboard",
+    "agent"
+  ],
+  "license": "MIT",
+  "author": "Gucong Qian <Rukawa15>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Rukawa15/dsh-session-monitor.git"
+  },
   "dsh": {
     "bundle": { "patch": "./cordis.patch.yml" },
     "client": {

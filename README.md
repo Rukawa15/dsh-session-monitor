@@ -3,7 +3,7 @@
 实时掌握本机所有 DeepSeek Harness (DSH) 会话动态的**只读**工具——谁在跑、
 跑什么、进展如何；配合 dsh-im 插件还能把结果推送到微信/QQ/飞书等 IM。
 
-> 当前版本 **0.5.2** · 任何时刻运行 `python scripts/monitor.py help` 可获取
+> 当前版本 **0.6.0** · 任何时刻运行 `python scripts/monitor.py help` 可获取
 > 完整的固定格式使用指南（`help <指令名>` 看单指令详情）。全部操作只读，
 > 不会修改或干扰任何会话。
 
@@ -32,9 +32,10 @@ IM 推送需另装 [dsh-im](https://github.com/xmanrui/dsh-im) 插件（可选�
 
 1. **插件市场**：安装 [dsh-market](https://github.com/dsh-market/dsh-market)
    后在「插件市场」标签页搜索 `dsh-session-monitor` 一键安装；
-2. **命令行**：`dsh plugin --profile <你的profile> add https://github.com/Rukawa15/dsh-session-monitor.git`
+2. **命令行（npm，推荐）**：`dsh plugin --profile <你的profile> add dsh-session-monitor`
    （普通 `dsh web` 用户 profile 名就是 `web`）；
-3. **本地路径**：克隆本仓库后 `dsh plugin --profile <你的profile> add <仓库路径>`
+3. **命令行（GitHub）**：`dsh plugin --profile <你的profile> add https://github.com/Rukawa15/dsh-session-monitor.git`；
+4. **本地路径**：克隆本仓库后 `dsh plugin --profile <你的profile> add <仓库路径>`
    （开发模式，改代码重启即生效）。
 
 > 不装插件包也可以：把本仓库加入 `~/.agents/skills/`（或作为技能目录），
