@@ -28,14 +28,17 @@
 IM 推送需另装 [dsh-im](https://github.com/xmanrui/dsh-im) 插件（可选，缺失时
 相关命令会给出安装/配置引导，其余功能不受影响）。
 
-两种安装形态（本机均已就绪）：
+三种安装方式任选其一，装完重启 DSH 生效：
 
-- **插件包（当前启用）**：在 DSH「插件管理」中通过本地路径
-  `D:\dsh-session-moniter` 安装（pnpm link 直链开发目录，改代码后重启 DSH 生效）。
-  设置页、依赖检测等完整功能均来自这一形态。
-- **技能目录（形态A）**：`C:\Users\admin\.agents\skills\dsh-session-monitor`
-  （junction 指向开发目录）。仅技能入口，适合不装插件包时让 AI 助手调用脚本。
-- ⚠️ 两种形态同时启用时技能会重复出现；插件包安装成功后建议删除 junction。
+1. **插件市场**：安装 [dsh-market](https://github.com/dsh-market/dsh-market)
+   后在「插件市场」标签页搜索 `dsh-session-monitor` 一键安装；
+2. **命令行**：`dsh plugin --profile <你的profile> add https://github.com/Rukawa15/dsh-session-monitor.git`
+   （普通 `dsh web` 用户 profile 名就是 `web`）；
+3. **本地路径**：克隆本仓库后 `dsh plugin --profile <你的profile> add <仓库路径>`
+   （开发模式，改代码重启即生效）。
+
+> 不装插件包也可以：把本仓库加入 `~/.agents/skills/`（或作为技能目录），
+> AI 助手同样能调用 `scripts/monitor.py` 的全部指令，只是没有设置页。
 
 ## 快速上手
 
