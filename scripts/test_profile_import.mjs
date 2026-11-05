@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 
 const PROFILE_PKG = 'C:/Users/admin/.dsh/profiles/desktop/package.json';
-const SPEC = '@local/dsh-session-monitor';
+const SPEC = 'dsh-session-monitor';
 
 try {
   const require = createRequire(pathToFileURL(PROFILE_PKG));

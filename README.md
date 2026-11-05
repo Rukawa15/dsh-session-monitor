@@ -3,7 +3,7 @@
 实时掌握本机所有 DeepSeek Harness (DSH) 会话动态的**只读**工具——谁在跑、
 跑什么、进展如何；配合 dsh-im 插件还能把结果推送到微信/QQ/飞书等 IM。
 
-> 当前版本 **0.6.1** · 任何时刻运行 `python scripts/monitor.py help` 可获取
+> 当前版本 **0.6.2** · 任何时刻运行 `python scripts/monitor.py help` 可获取
 > 完整的固定格式使用指南（`help <指令名>` 看单指令详情）。全部操作只读，
 > 不会修改或干扰任何会话。
 

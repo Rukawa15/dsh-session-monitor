@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-  id: '@local/dsh-session-monitor',
+  id: 'dsh-session-monitor',
   factory(require) {
     const React = require('react');
     const h = React.createElement;
